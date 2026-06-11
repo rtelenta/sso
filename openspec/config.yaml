@@ -1,0 +1,135 @@
+schema: spec-driven
+
+context: |
+  ## Project
+  Internal SSO (Single Sign-On) platform. One user pool, single tenant.
+  Downstream internal apps delegate authentication to this SSO.
+
+  ## SSO flow
+  1. User visits app1 and clicks "Sign in"
+  2. App1 redirects to this SSO with `redirect_uri` and `state` params
+  3. User logs in or registers on this SSO
+  4. SSO redirects to `app1/callback?code=<short-lived-auth-code>&state=<state>`
+  5. App1 makes a back-channel POST to SSO `/api/token` exchanging the code for a JWT
+  6. App1 stores the JWT and considers the user logged in
+
+  This is the OAuth2 Authorization Code flow — tokens never appear in the browser URL.
+
+  ## Logout model
+  - Hybrid: short-lived JWTs (15 min) + refresh token revocation.
+  - Logging out of the SSO revokes the refresh token in the DB
+  - Access JWTs expire naturally (15 min max exposure window)
+  - Apps call SSO `/api/token/refresh` with the refresh token to get new access JWTs
+  - On logout, the refresh token row is deleted; next refresh attempt fails, locking the app out
+
+  ## Auth methods
+  - Email + password (hashed via better-auth defaults)
+  - Magic link / passwordless email
+  - Google OAuth (only social provider — no GitHub, no others)
+  - Password recovery and reset (email-based, handled entirely within this SSO)
+
+  ## Tech stack
+  - Runtime / package manager: Bun
+  - Framework: Next.js 16 (App Router) + React 19
+  - API layer: Hono (mounted inside Next.js route handlers under `/api/*`)
+  - Auth library: better-auth
+  - ORM: Drizzle ORM
+  - Database: PostgreSQL
+  - Styling: Tailwind CSS v4 + shadcn/ui (component library built on Radix UI)
+  - Data fetching: TanStack Query (React Query) for all client-side API calls
+  - Forms: react-hook-form + zod (zod schema is the single source of truth for validation)
+  - Language: TypeScript (strict mode — no `any`, no unchecked casts)
+
+  ## Database conventions
+  - All primary keys are UUID v7 (time-sortable, DB-generated or app-generated via `uuid-v7` package)
+  - Drizzle migrations in `db/migrations/`, schema definitions in `db/schema/`
+  - Never use auto-increment integers for user-facing IDs
+
+  ## Architecture conventions
+  - Hono handles all `/api/*` routes; Next.js App Router handles all UI pages
+  - better-auth config in `lib/auth.ts`; Hono app in `lib/api/`
+  - Shared types in `types/`
+  - Named exports everywhere; no default exports except Next.js page components
+  - Server Components by default; `"use client"` only when interactivity requires it
+
+  ## Folder structure
+  Generic shared code (no business logic):
+  - `components/` — reusable UI components
+  - `hooks/` — reusable hooks
+  - `utils/` — reusable utilities
+
+  Business logic lives in `features/<domain>/`:
+  - `features/<domain>/components/` — components tied to that domain
+  - `features/<domain>/hooks/` — hooks tied to that domain
+  - `features/<domain>/utils/` — utilities tied to that domain
+  - `features/<domain>/pages/` — page-level components for that domain
+
+  Next.js `app/` folder is routing-only. Every page file is a thin shell:
+  ```ts
+  // app/some-route/page.tsx
+  export default function SomePage() {
+    return <SomeFeaturePage />;
+  }
+  ```
+  All real logic lives in the corresponding `features/` page component.
+
+  Business hook convention — the async fn lives inside the hook, not outside:
+  ```ts
+  // features/users/hooks/useCreateUser.ts
+  export function useCreateUser() {
+    const mutation = useMutation({
+      mutationFn: async (data: CreateUserInput) => { ... }
+    });
+    return mutation;
+  }
+  ```
+
+  ## Code style
+  - TypeScript strict: `strict: true`, no `any`, prefer `unknown` + type narrowing
+  - Functional components only, no class components
+  - Conventional Commits: `feat:`, `fix:`, `chore:`, `refactor:`, `docs:`, `test:`
+  - Never access `process.env` directly in code — re-export all env vars from `lib/constants.ts`:
+    ```ts
+    // lib/constants.ts
+    export const API_URL = process.env.NEXT_PUBLIC_API_URL;
+    ```
+    Import from `lib/constants.ts` everywhere else. This is the only file allowed to reference `process.env`.
+  - No hardcoded UI text strings — all text goes in `locales/en.json` and is accessed via the `t()` util:
+    ```ts
+    t("hello_world")      // → "Hello World!"
+    t("posts.title")      // → "Amazing Posts!"
+    ```
+    `locales/en.json` is the single source of truth for all copy. The project is English-only;
+    the locale file exists for maintainability, not multi-language support.
+  - No comments unless the WHY is non-obvious
+  - No barrel `index.ts` files unless the module is a public API boundary
+  - All client-side data fetching via TanStack Query — no raw `fetch` in components
+  - All forms use react-hook-form; define the zod schema first, derive the form type from it
+  - Use shadcn/ui components as the base for all UI — do not hand-roll primitives that shadcn already provides
+
+  ## Out of scope
+  - OIDC / SAML enterprise federation (orgs plugging in their own IdP) — not needed
+  - Multi-tenancy / organizations — single user pool only
+  - Social providers other than Google
+
+rules:
+  proposal:
+    - Always include a "Non-goals" section to keep scope tight
+    - Call out which better-auth plugin is needed (e.g. magic-link, google-social)
+    - Identify whether the change touches UI, API, DB schema, or all three
+    - Note any environment variables required (e.g. GOOGLE_CLIENT_ID, SMTP_HOST)
+    - Keep proposals under 400 words
+  design:
+    - Show the Drizzle schema shape for any new tables; all PKs must be UUID v7
+    - Show the Hono route signature for any new endpoints
+    - Describe the better-auth plugin configuration if auth flow changes
+    - For any redirect flow, show the full URL shape including params (code, state, redirect_uri)
+    - Describe the Next.js page/layout involved for any UI changes
+  tasks:
+    - Keep tasks small and concrete: a task should do one thing and nothing more.
+    - Each task must be a single concern: one route, one component, one migration, etc.
+    - Tasks that touch DB schema must include a Drizzle migration step
+    - Tasks that add env vars must include updating `.env.example`
+    - Tasks that introduce UI text must include adding the keys to `locales/en.json`
+    - Order tasks so the app stays runnable after each one (schema → API → UI)
+    - Never mix Hono route implementation with UI component work in the same task
