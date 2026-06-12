@@ -16,7 +16,7 @@ All HTTP requests under the `/api/*` path prefix SHALL be handled by a Hono appl
 - **THEN** Hono receives and can handle each method
 
 ### Requirement: Hono app is defined in `lib/api/index.ts`
-The Hono application instance SHALL be defined and exported from `lib/api/index.ts`. Route registrations SHALL be added to this file (or sub-files imported by it). The catch-all Next.js route handler SHALL import from `lib/api/index.ts`.
+The Hono application instance SHALL be defined and exported from `lib/api/index.ts`. `lib/api/index.ts` is the assembly point only — it SHALL NOT contain business logic. Domain-specific route implementations SHALL live in `features/<domain>/api/` and be imported by `lib/api/index.ts`. The catch-all Next.js route handler SHALL import from `lib/api/index.ts`.
 
 #### Scenario: App instance is importable
 - **WHEN** `app/api/[...route]/route.ts` imports the Hono app
@@ -25,6 +25,10 @@ The Hono application instance SHALL be defined and exported from `lib/api/index.
 #### Scenario: Base path is set to `/api`
 - **WHEN** the Hono app is initialized
 - **THEN** its base path is set to `/api` so route definitions don't repeat the prefix
+
+#### Scenario: Domain route files live in features
+- **WHEN** a new domain-specific Hono route file is created
+- **THEN** it is placed under `features/<domain>/api/` and imported into `lib/api/index.ts`, not placed in `lib/api/routes/`
 
 ### Requirement: Health check endpoint exists
 The Hono app SHALL expose a `GET /api/health` endpoint that returns HTTP 200 with a JSON body `{ "status": "ok" }`. This confirms the API layer is wired correctly.
