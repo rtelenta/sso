@@ -93,7 +93,7 @@ export function SignUpPage() {
           className="w-full"
           disabled={signUp.isPending}
         >
-          {t("auth.sign_up.submit")}
+          {signUp.isPending ? t("auth.sign_up.submitting") : t("auth.sign_up.submit")}
         </Button>
         <p className="text-sm text-muted-foreground">
           {t("auth.sign_up.have_account")}{" "}
