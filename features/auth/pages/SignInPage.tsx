@@ -80,7 +80,7 @@ export function SignInPage() {
           className="w-full"
           disabled={signIn.isPending}
         >
-          {t("auth.sign_in.submit")}
+          {signIn.isPending ? t("auth.sign_in.submitting") : t("auth.sign_in.submit")}
         </Button>
         <p className="text-sm text-muted-foreground">
           {t("auth.sign_in.no_account")}{" "}

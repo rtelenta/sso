@@ -9,6 +9,7 @@
       "password_label": "Password",
       "password_placeholder": "••••••••",
       "submit": "Sign in",
+      "submitting": "Signing in…",
       "no_account": "Don't have an account?",
       "sign_up_link": "Sign up"
     },
@@ -22,6 +23,7 @@
       "password_label": "Password",
       "password_placeholder": "••••••••",
       "submit": "Create account",
+      "submitting": "Creating account…",
       "have_account": "Already have an account?",
       "sign_in_link": "Sign in"
     },
