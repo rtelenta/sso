@@ -8,6 +8,13 @@
       "when": 1781247321069,
       "tag": "0000_mysterious_big_bertha",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1781287459861,
+      "tag": "0001_stiff_the_stranger",
+      "breakpoints": true
     }
   ]
 }
