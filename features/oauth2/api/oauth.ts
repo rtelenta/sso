@@ -32,3 +32,5 @@ oauthRouter.get("/oauth/start", async (c) => {
 
   return c.redirect("/sign-in");
 });
+
+oauthRouter.all("/oauth/start", (c) => c.text("Method Not Allowed", 405));

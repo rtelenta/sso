@@ -124,3 +124,6 @@ tokenRouter.post("/token/refresh", async (c) => {
     expires_in: 900,
   });
 });
+
+tokenRouter.all("/token", (c) => c.text("Method Not Allowed", 405));
+tokenRouter.all("/token/refresh", (c) => c.text("Method Not Allowed", 405));
