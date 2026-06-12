@@ -12,11 +12,15 @@ A single better-auth instance SHALL be created and exported from `lib/auth.ts`. 
 - **THEN** it imports the named export `auth` from `@/lib/auth`
 
 ### Requirement: better-auth is connected to the Drizzle database adapter
-The better-auth instance SHALL use the Drizzle adapter (`better-auth/adapters/drizzle`) to persist session and user data, using the `db` client from `@/db`. The database provider SHALL be set to `"pg"`.
+The better-auth instance SHALL use the Drizzle adapter (`better-auth/adapters/drizzle`) to persist session and user data, using the `db` client from `@/db`. The database provider SHALL be set to `"pg"`. The full Drizzle schema object (all table exports from `@/db/schema`) SHALL be passed as the `schema` option so better-auth can resolve its internal model names to table definitions.
 
 #### Scenario: Auth data persistence is routed through Drizzle
 - **WHEN** better-auth needs to read or write user/session data
 - **THEN** it uses the Drizzle adapter connected to the PostgreSQL database
+
+#### Scenario: Schema is passed to the Drizzle adapter
+- **WHEN** the better-auth instance is initialized
+- **THEN** the `drizzleAdapter` receives the full schema object (via `* as schema` import from `@/db/schema`) so that models like `user`, `session`, `account`, and `verification` can be resolved at runtime
 
 ### Requirement: better-auth secret and base URL are sourced from constants
 The `secret` option SHALL be sourced from `BETTER_AUTH_SECRET` in `lib/constants.ts`. The `baseURL` option SHALL be sourced from `NEXT_PUBLIC_APP_URL` in `lib/constants.ts`. Neither value SHALL be hardcoded or accessed via `process.env` directly in `lib/auth.ts`.
