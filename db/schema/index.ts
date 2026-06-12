@@ -1,4 +1,5 @@
-import { boolean, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { uuidv7 } from "uuidv7";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -48,4 +49,25 @@ export const verification = pgTable("verification", {
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const authCode = pgTable("auth_code", {
+  id: uuid("id").primaryKey().$defaultFn(() => uuidv7()),
+  code: text("code").notNull().unique(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  redirectUri: text("redirect_uri").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+});
+
+export const refreshToken = pgTable("refresh_token", {
+  id: uuid("id").primaryKey().$defaultFn(() => uuidv7()),
+  token: text("token").notNull().unique(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
 });
