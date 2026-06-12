@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { auth } from "@/lib/auth";
-import { oauthRouter } from "@/lib/api/routes/oauth";
-import { tokenRouter } from "@/lib/api/routes/token";
+import { oauthRouter } from "@/features/oauth2/api/oauth";
+import { tokenRouter } from "@/features/oauth2/api/token";
 
 export const app = new Hono().basePath("/api");
 
