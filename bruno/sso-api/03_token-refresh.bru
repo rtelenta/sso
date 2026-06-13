@@ -1,0 +1,63 @@
+meta {
+  name: 03 Token Refresh
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{sso_base_url}}/api/auth/oauth2/token
+  body: form-urlencoded
+  auth: none
+}
+
+body:form-urlencoded {
+  grant_type: refresh_token
+  refresh_token: {{refresh_token}}
+  client_id: {{client_id}}
+  client_secret: {{client_secret}}
+}
+
+docs {
+  # Token Refresh — Get a New Access JWT
+
+  Called **server-side** when the current access token is about to expire
+  or after receiving a 401 from a protected resource.
+
+  ## Before running
+
+  Set the `refresh_token` environment variable to the value received from
+  `02_token-exchange`.
+
+  ## Request
+
+  ```
+  POST /api/auth/oauth2/token
+  Content-Type: application/x-www-form-urlencoded
+
+  grant_type=refresh_token
+  &refresh_token=<opaque_refresh_token>
+  &client_id=<your_client_id>
+  &client_secret=<your_client_secret>
+  ```
+
+  **Important:** The token endpoint only accepts `application/x-www-form-urlencoded`.
+  JSON bodies are rejected with HTTP 415.
+
+  ## Successful response (HTTP 200)
+
+  ```json
+  {
+    "access_token": "<new EdDSA JWT>",
+    "token_type": "Bearer",
+    "expires_in": 900
+  }
+  ```
+
+  ## Notes
+
+  - Access token TTL is **15 minutes** (`expires_in: 900`).
+  - Refresh **proactively** (e.g. when < 2 min remain on `exp`) to avoid
+    latency spikes from waiting for a 401.
+  - A 401 response means the refresh token was revoked (user logged out
+    of SSO). Re-initiate the OAuth flow and clear stored tokens.
+}

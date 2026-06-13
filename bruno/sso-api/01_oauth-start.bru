@@ -1,0 +1,70 @@
+meta {
+  name: 01 OAuth Start
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{sso_base_url}}/api/auth/oauth2/authorize
+  body: none
+  auth: none
+}
+
+params:query {
+  response_type: code
+  redirect_uri: http://localhost:3001/callback
+  state: random_csrf_state_value
+  client_id: {{client_id}}
+  scope: openid email profile
+}
+
+docs {
+  # OAuth Start — Initiating the Auth Code Flow
+
+  This endpoint is NOT called programmatically by the app server.
+  It is a **browser redirect** — the app redirects the user's browser here.
+
+  ## How to use
+
+  1. Generate a random `state` value and store it in your server session.
+  2. Redirect the user's browser to:
+
+  ```
+  GET /api/auth/oauth2/authorize
+    ?response_type=code
+    &redirect_uri=https://your-app/callback
+    &state=<random_value>
+    &client_id=<your_client_id>
+    &scope=openid%20email%20profile
+  ```
+
+  3. If the user is not authenticated, the SSO displays the sign-in page.
+  4. After the user authenticates, the SSO redirects the browser to:
+
+  ```
+  https://your-app/callback?code=<auth_code>&state=<state>
+  ```
+
+  ## OIDC Discovery
+
+  All endpoint URLs (including this one) can be auto-discovered from:
+
+  ```
+  GET {SSO_BASE_URL}/api/auth/.well-known/openid-configuration
+  ```
+
+  OIDC client libraries can configure themselves from this document automatically.
+
+  ## Notes
+
+  - `response_type=code` is required.
+  - The `code` is short-lived and single-use. Exchange it immediately server-side via `POST /api/auth/oauth2/token` (see 02_token-exchange).
+  - Never expose `code` in client-side JavaScript or browser history.
+  - **`redirect_uri` must be pre-registered** with the SSO operator (seeded into the DB) or the flow will fail.
+
+  ## Bruno limitation
+
+  Bruno sends HTTP requests directly and cannot follow browser redirects
+  through a sign-in UI. Use this request to verify the endpoint responds
+  (expect a 302 to /sign-in), then complete the flow manually in a browser.
+}

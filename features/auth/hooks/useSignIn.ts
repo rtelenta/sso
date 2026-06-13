@@ -2,7 +2,6 @@ import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { authClient } from "@/lib/auth-client";
-import { handlePostAuthRedirect } from "@/features/oauth2/actions/handlePostAuthRedirect";
 
 export const signInSchema = z.object({
   email: z.string().email(),
@@ -20,9 +19,8 @@ export function useSignIn() {
       if (res.error) throw new Error(res.error.message);
       return res.data;
     },
-    onSuccess: async () => {
-      const redirectUrl = await handlePostAuthRedirect();
-      router.push(redirectUrl);
+    onSuccess: () => {
+      router.push("/");
     },
   });
 }

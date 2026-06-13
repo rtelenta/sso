@@ -2,111 +2,87 @@
 
 ## Purpose
 
-Defines the OAuth2 Authorization Code flow for the SSO: accepting redirect parameters from downstream apps, issuing short-lived auth codes after successful authentication, and exposing token exchange endpoints so apps can obtain access JWTs and refresh tokens.
+Defines the OAuth2 Authorization Code flow for the SSO using the `@better-auth/oauth-provider` plugin. The plugin manages the full OAuth2 lifecycle — authorization, auth code issuance, token exchange, and refresh — under `/api/auth/oauth2/`. Downstream apps register as trusted clients in `lib/auth.ts`.
 
 ## Requirements
 
-### Requirement: Sign-in and sign-up pages accept OAuth2 redirect parameters
-The system SHALL accept `redirect_uri`, `state`, and `client_id` as query parameters on the `/sign-in` and `/sign-up` pages. When present, these parameters SHALL be stored in a signed, HttpOnly, SameSite=Lax cookie named `oauth_pending` with a 10-minute TTL. The cookie SHALL be signed using HMAC-SHA256 with `BETTER_AUTH_SECRET`. The parameters SHALL NOT be forwarded through the form or URL.
+### Requirement: OAuth2 Authorization Code flow is provided by @better-auth/oauth-provider plugin
+The system SHALL use `@better-auth/oauth-provider` configured in `lib/auth.ts` as the sole implementation of the OAuth2 Authorization Code flow. The plugin SHALL be configured with `loginPage: "/sign-in"`. All OAuth endpoints are mounted automatically under `/api/auth/oauth2/` via the existing Better Auth handler. OAuth clients SHALL be registered in the database (seeded via `bun db:seed`) with `requirePKCE: false` for confidential server-side clients and `skipConsent: true` for internal apps.
 
-#### Scenario: OAuth2 params are stored in cookie on page load
-- **WHEN** a browser GETs `/sign-in?redirect_uri=https://app1/callback&state=abc&client_id=app1`
-- **THEN** the server sets an `oauth_pending` HttpOnly cookie containing the signed `redirect_uri`, `state`, and `client_id` values, and the sign-in page renders normally
+#### Scenario: Unauthenticated user is redirected to sign-in
+- **WHEN** a browser GETs `/api/auth/oauth2/authorize?client_id=app1&redirect_uri=https://app1/callback&response_type=code&state=xyz`
+- **THEN** the server redirects to `/sign-in` and the pending OAuth request is preserved internally by the plugin
 
-#### Scenario: Missing redirect_uri results in no cookie being set
-- **WHEN** a browser GETs `/sign-in` without a `redirect_uri` query parameter
-- **THEN** no `oauth_pending` cookie is set and the sign-in page renders with its default post-auth behavior
+#### Scenario: Authenticated user is redirected to callback with auth code
+- **WHEN** a user is already authenticated and GETs `/api/auth/oauth2/authorize` with valid params
+- **THEN** the server redirects to `https://app1/callback?code=<code>&state=xyz` immediately
 
-#### Scenario: Tampered oauth_pending cookie is rejected
-- **WHEN** a request arrives with an `oauth_pending` cookie whose HMAC signature does not match
-- **THEN** the cookie is treated as absent and the default post-auth redirect is used
+#### Scenario: Auth code is exchanged for tokens via form-encoded request
+- **WHEN** `POST /api/auth/oauth2/token` is called with a valid `authorization_code` grant and form-encoded body
+- **THEN** the response is HTTP 200 with `{ access_token, refresh_token, token_type: "Bearer", expires_in }`
 
-### Requirement: Auth code is issued after successful authentication when an OAuth2 flow is pending
-After a user successfully authenticates (sign-in or sign-up), the system SHALL check for a valid `oauth_pending` cookie. If present, the system SHALL generate a 32-byte random hex auth code, persist it in the `auth_code` table with the associated `user_id`, `redirect_uri`, and a 5-minute expiry, delete the `oauth_pending` cookie, and redirect the browser to `{redirect_uri}?code={code}&state={state}`.
+#### Scenario: Refresh token yields a new access token
+- **WHEN** `POST /api/auth/oauth2/token` is called with `grant_type=refresh_token` and a valid refresh token (form-encoded)
+- **THEN** the response is HTTP 200 with a new `access_token`
 
-#### Scenario: Auth code issued and browser redirected after sign-in
-- **WHEN** a user successfully authenticates and a valid `oauth_pending` cookie exists
-- **THEN** a new row is inserted into `auth_code`, the browser is redirected to `{redirect_uri}?code={code}&state={state}`, and the `oauth_pending` cookie is cleared
+#### Scenario: Refresh token can be revoked
+- **WHEN** `POST /api/auth/oauth2/revoke` is called with a valid refresh token and client credentials (form-encoded)
+- **THEN** the response is HTTP 200 and the token is invalidated; subsequent refresh attempts return an error
 
-#### Scenario: No auth code issued when no OAuth2 flow is pending
-- **WHEN** a user successfully authenticates and no `oauth_pending` cookie exists
-- **THEN** no `auth_code` row is created and the browser is redirected to the default post-auth destination
+#### Scenario: Unknown client is rejected
+- **WHEN** `/api/auth/oauth2/authorize` is called with a `client_id` not in the database
+- **THEN** the server returns an OAuth2 error response
 
-#### Scenario: Expired oauth_pending cookie is treated as absent
-- **WHEN** a user authenticates and the `oauth_pending` cookie has passed its 10-minute TTL
-- **THEN** no auth code is issued and the default post-auth redirect is used
+### Requirement: OAuth clients are registered as trustedClients in lib/auth.ts
+The system SHALL register downstream apps as entries in the `trustedClients` plugin option, each with `clientId`, `clientSecret`, and `redirectURLs`. Client secrets SHALL be read from environment variables exported from `lib/constants.ts`. All trusted clients SHALL have `skipConsent: true` since they are internal apps.
 
-### Requirement: Auth codes are single-use and expire after 5 minutes
-Each auth code SHALL be usable exactly once. The system SHALL reject auth codes that have been previously exchanged (`used_at IS NOT NULL`) or that have passed their `expires_at` timestamp. A used code's `used_at` column SHALL be set at the time of first successful exchange.
+#### Scenario: Client with valid credentials can exchange a code
+- **WHEN** `POST /api/auth/oauth2/token` is called with a `client_id` and `client_secret` matching a `trustedClients` entry
+- **THEN** the token exchange succeeds
 
-#### Scenario: Already-used auth code is rejected
-- **WHEN** `POST /api/token` is called with an auth code whose `used_at` is not null
-- **THEN** the response is HTTP 400 with an error indicating the code has already been used
-
-#### Scenario: Expired auth code is rejected
-- **WHEN** `POST /api/token` is called with an auth code whose `expires_at` is in the past
-- **THEN** the response is HTTP 400 with an error indicating the code has expired
-
-### Requirement: POST /api/token exchanges an auth code for an access JWT and refresh token
-The system SHALL expose `POST /api/token` in the Hono app. The request body SHALL be JSON with fields: `grant_type` (must equal `"authorization_code"`), `code`, `redirect_uri`, `client_id`, `client_secret`. The endpoint SHALL validate the client credentials against `OAUTH_CLIENTS`, validate the auth code, verify `redirect_uri` matches the stored value, mark the code as used, and return a JSON response with `access_token` (JWT, 15-min TTL), `refresh_token` (opaque, 30-day TTL), `token_type: "Bearer"`, and `expires_in: 900`.
-
-#### Scenario: Valid code exchange returns tokens
-- **WHEN** `POST /api/token` is called with a valid `client_id`, `client_secret`, `code`, and matching `redirect_uri`
-- **THEN** the response is HTTP 200 with `{ access_token, refresh_token, token_type: "Bearer", expires_in: 900 }`
-
-#### Scenario: Invalid client credentials are rejected
-- **WHEN** `POST /api/token` is called with an unrecognized `client_id` or wrong `client_secret`
+#### Scenario: Client with invalid secret is rejected
+- **WHEN** `POST /api/auth/oauth2/token` is called with a wrong `client_secret`
 - **THEN** the response is HTTP 401
 
-#### Scenario: Mismatched redirect_uri is rejected
-- **WHEN** `POST /api/token` is called with a `redirect_uri` that does not match the one stored with the auth code
-- **THEN** the response is HTTP 400
+### Requirement: OIDC discovery endpoint is available
+The system SHALL expose `GET /.well-known/openid-configuration` returning a JSON document with the issuer URL, authorization endpoint, token endpoint, and supported grant types. This is provided automatically by the plugin.
 
-#### Scenario: Unknown auth code is rejected
-- **WHEN** `POST /api/token` is called with a `code` that does not exist in the `auth_code` table
-- **THEN** the response is HTTP 400
+#### Scenario: Discovery document is accessible
+- **WHEN** a client GETs `/.well-known/openid-configuration`
+- **THEN** the response is HTTP 200 with a valid OIDC metadata JSON document containing at minimum `issuer`, `authorization_endpoint`, and `token_endpoint`
 
-#### Scenario: Wrong grant_type is rejected
-- **WHEN** `POST /api/token` is called with `grant_type` other than `"authorization_code"`
-- **THEN** the response is HTTP 400
+### Requirement: Sign-out invalidates the OAuth session without manual refresh token revocation
+The `signOut` server action SHALL call `auth.api.signOut` only. It SHALL NOT query or modify any custom refresh token table. The plugin invalidates associated OAuth tokens when the Better Auth session is revoked.
 
-### Requirement: POST /api/token/refresh exchanges a refresh token for a new access JWT
-The system SHALL expose `POST /api/token/refresh` in the Hono app. The request body SHALL be JSON with fields: `refresh_token`, `client_id`, `client_secret`. The endpoint SHALL validate the client, look up the refresh token, reject it if revoked or expired, and return a new access JWT with 15-min TTL. The refresh token itself SHALL NOT be rotated on each use.
+#### Scenario: Sign-out succeeds without custom DB queries
+- **WHEN** `signOut()` is called
+- **THEN** the Better Auth session is revoked and the user is redirected to `/`, with no queries to `auth_code` or `refresh_token` tables
 
-#### Scenario: Valid refresh token returns new access JWT
-- **WHEN** `POST /api/token/refresh` is called with valid client credentials and a non-revoked, non-expired refresh token
-- **THEN** the response is HTTP 200 with `{ access_token, token_type: "Bearer", expires_in: 900 }`
+### Requirement: OIDC discovery document is the authoritative source for endpoint URLs
+The system SHALL expose a standards-compliant OIDC discovery document at `GET {SSO_BASE_URL}/api/auth/.well-known/openid-configuration`. Downstream integrators SHALL use this document to obtain endpoint URLs and supported algorithms rather than hardcoding them. The document SHALL include at minimum: `issuer`, `authorization_endpoint`, `token_endpoint`, `jwks_uri`, `revocation_endpoint`, and `id_token_signing_alg_values_supported`.
 
-#### Scenario: Revoked refresh token is rejected
-- **WHEN** `POST /api/token/refresh` is called with a refresh token whose `revoked_at` is not null
-- **THEN** the response is HTTP 401
+#### Scenario: Discovery document contains required fields
+- **WHEN** a client GETs `{SSO_BASE_URL}/api/auth/.well-known/openid-configuration`
+- **THEN** the response is HTTP 200 JSON containing `issuer`, `authorization_endpoint`, `token_endpoint`, `jwks_uri`, `revocation_endpoint`, and `id_token_signing_alg_values_supported`
 
-#### Scenario: Expired refresh token is rejected
-- **WHEN** `POST /api/token/refresh` is called with a refresh token whose `expires_at` is in the past
-- **THEN** the response is HTTP 401
+### Requirement: Access tokens are EdDSA-signed JWTs validated via JWKS
+The access token issued by the token endpoint SHALL be a JWT signed with EdDSA (Ed25519). Downstream apps SHALL validate it by fetching the public key from the `jwks_uri` in the discovery document (`GET {SSO_BASE_URL}/api/auth/jwks`). Apps SHALL NOT use a shared secret (`JWT_SECRET`) to validate tokens. Apps SHALL validate the `iss` claim against `{SSO_BASE_URL}/api/auth`. JWKS public keys SHALL be cached locally — apps MUST NOT fetch JWKS on every request.
 
-#### Scenario: Invalid client credentials on refresh are rejected
-- **WHEN** `POST /api/token/refresh` is called with an unrecognized `client_id` or wrong `client_secret`
-- **THEN** the response is HTTP 401
+#### Scenario: Valid access token passes JWKS validation
+- **WHEN** a downstream app validates an access token using the JWKS public key and `algorithms: ["EdDSA"]`
+- **THEN** validation succeeds and `payload.sub` (UUID v7 user ID) and `payload.email` are accessible
 
-### Requirement: auth_code and refresh_token tables exist in the database
-The database SHALL contain an `auth_code` table with columns: `id` (UUID v7 PK), `code` (text, unique), `user_id` (UUID FK → user), `redirect_uri` (text), `expires_at` (timestamptz), `used_at` (timestamptz, nullable). It SHALL also contain a `refresh_token` table with columns: `id` (UUID v7 PK), `token` (text, unique), `user_id` (UUID FK → user), `expires_at` (timestamptz), `revoked_at` (timestamptz, nullable). Both tables SHALL be defined in `db/schema/` and applied via a Drizzle migration.
+#### Scenario: Hardcoded public key breaks on key rotation
+- **WHEN** Better Auth rotates its signing key
+- **THEN** apps using `createRemoteJWKSet` automatically fetch the new key, while apps with a hardcoded key begin rejecting valid tokens
 
-#### Scenario: auth_code table exists after migration
-- **WHEN** the Drizzle migration is applied
-- **THEN** the `auth_code` table exists with all required columns
+### Requirement: Token endpoint requires form-encoded body
+The token endpoint (`POST /api/auth/oauth2/token`) SHALL accept only `application/x-www-form-urlencoded` request bodies. JSON bodies SHALL be rejected with HTTP 415. This applies to both `authorization_code` and `refresh_token` grant types.
 
-#### Scenario: refresh_token table exists after migration
-- **WHEN** the Drizzle migration is applied
-- **THEN** the `refresh_token` table exists with all required columns
+#### Scenario: Form-encoded authorization_code grant succeeds
+- **WHEN** `POST /api/auth/oauth2/token` is called with `Content-Type: application/x-www-form-urlencoded` and body `grant_type=authorization_code&code=...&redirect_uri=...&client_id=...&client_secret=...`
+- **THEN** the response is HTTP 200 with `{ access_token, refresh_token, token_type, expires_in }`
 
-### Requirement: JWT_SECRET and OAUTH_CLIENTS are sourced from constants
-`JWT_SECRET` (used to sign access JWTs) and `OAUTH_CLIENTS` (JSON map of `{ [clientId]: clientSecret }`) SHALL be exported from `lib/constants.ts`. Neither SHALL be accessed via `process.env` outside that file.
-
-#### Scenario: JWT_SECRET is accessible via constants
-- **WHEN** `lib/api/routes/token.ts` signs a JWT
-- **THEN** it imports `JWT_SECRET` from `@/lib/constants`
-
-#### Scenario: OAUTH_CLIENTS is accessible via constants
-- **WHEN** the token endpoint validates a client
-- **THEN** it imports `OAUTH_CLIENTS` from `@/lib/constants`
+#### Scenario: JSON body is rejected
+- **WHEN** `POST /api/auth/oauth2/token` is called with `Content-Type: application/json`
+- **THEN** the response is HTTP 415 with an error indicating the content type is not allowed

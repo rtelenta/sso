@@ -1,0 +1,75 @@
+meta {
+  name: 04 Token Revoke
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{sso_base_url}}/api/auth/oauth2/revoke
+  body: form-urlencoded
+  auth: none
+}
+
+body:form-urlencoded {
+  token: {{refresh_token}}
+  client_id: {{client_id}}
+  client_secret: {{client_secret}}
+}
+
+docs {
+  # Token Revoke — Revoke a Refresh Token (RFC 7009)
+
+  Called **server-side** when the user logs out of your app.
+  Revokes the refresh token so it can no longer be used to obtain new
+  access JWTs.
+
+  ## Before running
+
+  Set the `refresh_token` environment variable to the value received from
+  `02_token-exchange`.
+
+  ## Request
+
+  ```
+  POST /api/auth/oauth2/revoke
+  Content-Type: application/x-www-form-urlencoded
+
+  token=<opaque_refresh_token>
+  &client_id=<your_client_id>
+  &client_secret=<your_client_secret>
+  ```
+
+  **Important:** The revoke endpoint only accepts `application/x-www-form-urlencoded`.
+  The token field name is `token` (not `refresh_token`).
+
+  ## Successful response (HTTP 200)
+
+  Empty body. The token has been revoked.
+
+  ## Error response (HTTP 400)
+
+  ```json
+  { "error": "invalid_request", "error_description": "token not found" }
+  ```
+
+  Returned when the token does not exist or was already revoked. Despite RFC 7009
+  recommending 200 for unknown tokens, this implementation returns 400.
+
+  **Always clear the local session regardless of this call's outcome** — do not
+  depend on the API to succeed before clearing stored tokens.
+
+  ## Notes
+
+  - After revocation, any attempt to use the same token at `/api/auth/oauth2/token`
+    (refresh grant) will return an error.
+  - Existing access JWTs issued before revocation remain valid until their `exp`
+    (max 15 minutes). There is no access token blacklist.
+  - Always clear stored tokens on the app side regardless of the API
+    response — local session clearing should not depend on this call succeeding.
+
+  ## Browser-based logout
+
+  For OIDC RP-Initiated Logout (redirecting the user's browser to log out
+  of the SSO session as well), use the `end_session_endpoint` from the
+  OIDC discovery document (`GET /api/auth/.well-known/openid-configuration`).
+}

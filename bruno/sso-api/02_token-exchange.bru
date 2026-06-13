@@ -1,0 +1,72 @@
+meta {
+  name: 02 Token Exchange
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{sso_base_url}}/api/auth/oauth2/token
+  body: form-urlencoded
+  auth: none
+}
+
+body:form-urlencoded {
+  grant_type: authorization_code
+  code: {{code}}
+  redirect_uri: http://localhost:3001/callback
+  client_id: {{client_id}}
+  client_secret: {{client_secret}}
+}
+
+docs {
+  # Token Exchange — Authorization Code for Tokens
+
+  Called **server-side** (back-channel) after your callback route receives
+  `?code=<auth_code>&state=<state>` from the SSO redirect.
+
+  ## Before running
+
+  1. Complete the OAuth flow in a browser via `01_oauth-start`.
+  2. Copy the `code` value from the callback URL query param.
+  3. Paste it into the `code` environment variable in Bruno (Environment > local > code).
+
+  ## Request
+
+  ```
+  POST /api/auth/oauth2/token
+  Content-Type: application/x-www-form-urlencoded
+
+  grant_type=authorization_code
+  &code=<auth_code_from_callback>
+  &redirect_uri=https://your-app/callback
+  &client_id=<your_client_id>
+  &client_secret=<your_client_secret>
+  ```
+
+  **Important:** The token endpoint only accepts `application/x-www-form-urlencoded`.
+  JSON bodies are rejected with HTTP 415.
+
+  `redirect_uri` must **exactly** match the one used in `01_oauth-start`.
+
+  ## Successful response (HTTP 200)
+
+  ```json
+  {
+    "access_token": "<EdDSA JWT>",
+    "refresh_token": "<opaque token>",
+    "token_type": "Bearer",
+    "expires_in": 900
+  }
+  ```
+
+  The `access_token` is an EdDSA-signed JWT. Validate it using the JWKS endpoint
+  (`GET /api/auth/jwks`) — no shared secret required.
+
+  Store both tokens server-side. **Never send them to the browser.**
+
+  ## Notes
+
+  - `code` is **single-use** — a second call with the same code returns 400.
+  - Save the `refresh_token` into the `refresh_token` environment variable
+    to run `03_token-refresh` and `04_token-revoke` without manual copy-paste.
+}
