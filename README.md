@@ -87,4 +87,4 @@ Open [http://localhost:3000](http://localhost:3000) to see the SSO sign-in page.
 
 ---
 
-Hecho con ❤️ por [Renzo Telenta](https://github.com/rtelenta)
+Made with ❤️ by [Renzo Telenta](https://github.com/rtelenta)
