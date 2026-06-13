@@ -20,7 +20,7 @@ See [docs/local-setup.md](docs/local-setup.md) for a detailed step-by-step guide
 1. Clone and install dependencies
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/rtelenta/sso
 cd sso
 bun install
 ```
@@ -54,24 +54,24 @@ Open [http://localhost:3000](http://localhost:3000) to see the SSO sign-in page.
 
 ## Scripts ⚙️
 
-| Script | Description |
-|---|---|
-| `bun run dev` | Start the Next.js development server |
-| `bun run build` | Build for production |
-| `bun run start` | Start the production server |
-| `bun run lint` | Run ESLint |
-| `bun run db:generate` | Generate Drizzle migration files from schema changes |
-| `bun run db:migrate` | Apply pending migrations to the database |
-| `bun run db:push` | Push schema directly to DB without a migration file (dev only) |
-| `bun run db:seed` | Seed the `dev-client` OAuth client into the database |
+| Script                | Description                                                    |
+| --------------------- | -------------------------------------------------------------- |
+| `bun run dev`         | Start the Next.js development server                           |
+| `bun run build`       | Build for production                                           |
+| `bun run start`       | Start the production server                                    |
+| `bun run lint`        | Run ESLint                                                     |
+| `bun run db:generate` | Generate Drizzle migration files from schema changes           |
+| `bun run db:migrate`  | Apply pending migrations to the database                       |
+| `bun run db:push`     | Push schema directly to DB without a migration file (dev only) |
+| `bun run db:seed`     | Seed the `dev-client` OAuth client into the database           |
 
 ## Documentation 📖
 
-| Resource | Description |
-|---|---|
-| [docs/integration-guide.md](docs/integration-guide.md) | Full guide for integrating a downstream app with this SSO (OIDC discovery, token exchange, JWT validation, refresh, logout) |
-| [docs/local-setup.md](docs/local-setup.md) | Step-by-step local environment setup (env vars, DB, migrations, seed) |
-| [bruno/sso-api/](bruno/sso-api/) | Bruno API collection — interactive examples for all four OAuth flow steps. Open in [Bruno](https://www.usebruno.com/) and select the `local` environment |
+| Resource                                               | Description                                                                                                                                              |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [docs/integration-guide.md](docs/integration-guide.md) | Full guide for integrating a downstream app with this SSO (OIDC discovery, token exchange, JWT validation, refresh, logout)                              |
+| [docs/local-setup.md](docs/local-setup.md)             | Step-by-step local environment setup (env vars, DB, migrations, seed)                                                                                    |
+| [bruno/sso-api/](bruno/sso-api/)                       | Bruno API collection — interactive examples for all four OAuth flow steps. Open in [Bruno](https://www.usebruno.com/) and select the `local` environment |
 
 ## Built with 🛠️
 
@@ -86,4 +86,5 @@ Open [http://localhost:3000](http://localhost:3000) to see the SSO sign-in page.
 - [Zod](https://zod.dev/) — schema validation
 
 ---
-⌨️ con ❤️
+
+Hecho con ❤️ por [Renzo Telenta](https://github.com/rtelenta)
