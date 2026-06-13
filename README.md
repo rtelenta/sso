@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SSO Platform 🔐
 
-## Getting Started
+_Internal Single Sign-On platform. Downstream internal apps delegate all authentication here — users never enter a password in your app, only on the SSO._
 
-First, run the development server:
+The SSO implements the **OAuth2 Authorization Code flow** via [`@better-auth/oauth-provider`](https://www.better-auth.com/). It issues short-lived access JWTs (EdDSA, 15-minute TTL) and long-lived refresh tokens. Tokens are exchanged server-side only — they never appear in the browser URL.
+
+Supported auth methods: email/password, magic link, Google OAuth, and password recovery.
+
+## Getting Started 🚀
+
+See [docs/local-setup.md](docs/local-setup.md) for a detailed step-by-step guide.
+
+### Prerequisites 📋
+
+- [Bun](https://bun.sh) ≥ 1.0
+- PostgreSQL database (local or [Neon](https://neon.tech))
+
+### Installation 🔧
+
+1. Clone and install dependencies
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <repo-url>
+cd sso
+bun install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Configure environment variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cp .env.example .env
+# Edit .env with your values — see docs/local-setup.md for details
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+3. Run database migrations
 
-## Learn More
+```bash
+bun run db:migrate
+```
 
-To learn more about Next.js, take a look at the following resources:
+4. Seed the dev OAuth client
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+bun run db:seed
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+5. Start the development server
 
-## Deploy on Vercel
+```bash
+bun run dev
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Open [http://localhost:3000](http://localhost:3000) to see the SSO sign-in page.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Scripts ⚙️
+
+| Script | Description |
+|---|---|
+| `bun run dev` | Start the Next.js development server |
+| `bun run build` | Build for production |
+| `bun run start` | Start the production server |
+| `bun run lint` | Run ESLint |
+| `bun run db:generate` | Generate Drizzle migration files from schema changes |
+| `bun run db:migrate` | Apply pending migrations to the database |
+| `bun run db:push` | Push schema directly to DB without a migration file (dev only) |
+| `bun run db:seed` | Seed the `dev-client` OAuth client into the database |
+
+## Documentation 📖
+
+| Resource | Description |
+|---|---|
+| [docs/integration-guide.md](docs/integration-guide.md) | Full guide for integrating a downstream app with this SSO (OIDC discovery, token exchange, JWT validation, refresh, logout) |
+| [docs/local-setup.md](docs/local-setup.md) | Step-by-step local environment setup (env vars, DB, migrations, seed) |
+| [bruno/sso-api/](bruno/sso-api/) | Bruno API collection — interactive examples for all four OAuth flow steps. Open in [Bruno](https://www.usebruno.com/) and select the `local` environment |
+
+## Built with 🛠️
+
+- [Bun](https://bun.sh) — runtime and package manager
+- [Next.js 16](https://nextjs.org) — App Router + React 19
+- [better-auth](https://www.better-auth.com/) + [@better-auth/oauth-provider](https://www.better-auth.com/) — authentication and OAuth2 provider
+- [Drizzle ORM](https://orm.drizzle.team/) — type-safe ORM
+- [PostgreSQL](https://www.postgresql.org/) — database
+- [Tailwind CSS v4](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/) — styling and components
+- [Hono](https://hono.dev/) — API layer
+- [TanStack Query](https://tanstack.com/query) — client-side data fetching
+- [Zod](https://zod.dev/) — schema validation
+
+---
+⌨️ con ❤️
