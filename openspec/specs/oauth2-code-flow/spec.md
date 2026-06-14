@@ -9,6 +9,8 @@ Defines the OAuth2 Authorization Code flow for the SSO using the `@better-auth/o
 ### Requirement: OAuth2 Authorization Code flow is provided by @better-auth/oauth-provider plugin
 The system SHALL use `@better-auth/oauth-provider` configured in `lib/auth.ts` as the sole implementation of the OAuth2 Authorization Code flow. The plugin SHALL be configured with `loginPage: "/sign-in"`. All OAuth endpoints are mounted automatically under `/api/auth/oauth2/` via the existing Better Auth handler. OAuth clients SHALL be registered in the database (seeded via `bun db:seed`) with `requirePKCE: false` for confidential server-side clients and `skipConsent: true` for internal apps.
 
+The sign-in page (`/sign-in`) SHALL forward its full query string (the signed OAuth params appended by the plugin, including `sig`) to the sign-up page link so that `window.location.search` on `/sign-up` carries `sig`. This enables the `oauthProviderClient` fetch plugin to include `oauth_query` in the `signUp.email()` request body, allowing the plugin's server-side hook to continue the OAuth flow after registration.
+
 #### Scenario: Unauthenticated user is redirected to sign-in
 - **WHEN** a browser GETs `/api/auth/oauth2/authorize?client_id=app1&redirect_uri=https://app1/callback&response_type=code&state=xyz`
 - **THEN** the server redirects to `/sign-in` and the pending OAuth request is preserved internally by the plugin
@@ -32,6 +34,18 @@ The system SHALL use `@better-auth/oauth-provider` configured in `lib/auth.ts` a
 #### Scenario: Unknown client is rejected
 - **WHEN** `/api/auth/oauth2/authorize` is called with a `client_id` not in the database
 - **THEN** the server returns an OAuth2 error response
+
+#### Scenario: New user registers during OAuth2 flow and is redirected to app callback
+- **WHEN** a user arrives at `/sign-in` via an OAuth2 authorize redirect (URL contains signed params with `sig`)
+- **AND** the user clicks "Sign up" which navigates to `/sign-up` with the same signed params forwarded
+- **AND** the user completes registration via `signUp.email()`
+- **THEN** the `oauthProviderClient` plugin attaches `oauth_query` to the request body (derived from `window.location.search`)
+- **AND** the server creates the account, establishes a session, and redirects to `https://app1/callback?code=<code>&state=xyz`
+
+#### Scenario: User registers directly on SSO (no OAuth context) and is sent to home
+- **WHEN** a user navigates directly to `/sign-up` with no signed OAuth params in the URL
+- **AND** completes registration
+- **THEN** the user is redirected to `/` (SSO home page)
 
 ### Requirement: OAuth clients are registered as trustedClients in lib/auth.ts
 The system SHALL register downstream apps as entries in the `trustedClients` plugin option, each with `clientId`, `clientSecret`, and `redirectURLs`. Client secrets SHALL be read from environment variables exported from `lib/constants.ts`. All trusted clients SHALL have `skipConsent: true` since they are internal apps.

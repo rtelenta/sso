@@ -3,6 +3,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +20,9 @@ import { t } from "@/utils/t";
 
 export function SignInPage() {
   const signIn = useSignIn();
+  const searchParams = useSearchParams();
+  const search = searchParams.toString();
+  const signUpHref = search ? `/sign-up?${search}` : "/sign-up";
 
   const {
     register,
@@ -84,7 +88,7 @@ export function SignInPage() {
         </Button>
         <p className="text-sm text-muted-foreground">
           {t("auth.sign_in.no_account")}{" "}
-          <Link href="/sign-up" className="underline underline-offset-4">
+          <Link href={signUpHref} className="underline underline-offset-4">
             {t("auth.sign_in.sign_up_link")}
           </Link>
         </p>
