@@ -3,6 +3,15 @@ import { oauthClient } from "@/db/schema";
 import { OAUTH_CLIENTS } from "@/lib/constants";
 import { eq } from "drizzle-orm";
 import { generateId } from "better-auth";
+import { createHash } from "@better-auth/utils/hash";
+import { base64Url } from "@better-auth/utils/base64";
+
+async function hashSecret(secret: string): Promise<string> {
+  const hash = await createHash("SHA-256").digest(
+    new TextEncoder().encode(secret),
+  );
+  return base64Url.encode(new Uint8Array(hash), { padding: false });
+}
 
 async function seed() {
   for (const client of OAUTH_CLIENTS) {
@@ -20,7 +29,7 @@ async function seed() {
     await db.insert(oauthClient).values({
       id: generateId(),
       clientId: client.clientId,
-      clientSecret: client.clientSecret,
+      clientSecret: await hashSecret(client.clientSecret),
       name: client.name,
       redirectUris: client.redirectUris,
       postLogoutRedirectUris: client.postLogoutRedirectUris,
