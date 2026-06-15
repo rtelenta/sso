@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
@@ -22,7 +23,7 @@ import {
 } from "@/features/auth/hooks/useSignIn";
 import { t } from "@/utils/t";
 
-export function SignInPage() {
+function SignInContent() {
   const searchParams = useSearchParams();
   const search = searchParams.toString();
   const signUpHref = search ? `/sign-up?${search}` : "/sign-up";
@@ -107,5 +108,13 @@ export function SignInPage() {
         </p>
       </CardFooter>
     </Card>
+  );
+}
+
+export function SignInPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignInContent />
+    </Suspense>
   );
 }

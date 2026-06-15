@@ -24,6 +24,7 @@ export const auth = betterAuth({
         hash: (secret) => Promise.resolve(secret),
         verify: (secret, stored) => Promise.resolve(secret === stored),
       },
+      silenceWarnings: { oauthAuthServerConfig: true },
     }),
   ],
 });
