@@ -1,5 +1,9 @@
 {
   "hello_world": "Hello world!",
+  "direct_access": {
+    "title": "Internal SSO",
+    "description": "This is an internal Single Sign-On service. It is not intended to be accessed directly — your application will redirect you here automatically when sign-in is required."
+  },
   "auth": {
     "sign_in": {
       "title": "Sign in",
