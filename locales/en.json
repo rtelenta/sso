@@ -27,14 +27,6 @@
       "have_account": "Already have an account?",
       "sign_in_link": "Sign in"
     },
-    "account_picker": {
-      "title": "Choose an account",
-      "description": "to continue",
-      "continue_as": "Continue as",
-      "switch_account": "Use a different account",
-      "switch_account_loading": "Signing out…",
-      "switch_error": "Failed to sign out. Please try again."
-    },
     "errors": {
       "invalid_credentials": "Invalid email or password",
       "email_taken": "An account with this email already exists",

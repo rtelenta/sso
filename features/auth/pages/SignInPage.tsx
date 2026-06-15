@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
@@ -16,32 +15,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { authClient } from "@/lib/auth-client";
-import { useSignIn, signInSchema, type SignInInput } from "@/features/auth/hooks/useSignIn";
-import { useContinueAs } from "@/features/auth/hooks/useContinueAs";
-import { useSwitchAccount } from "@/features/auth/hooks/useSwitchAccount";
-import { AccountPickerCard } from "@/features/auth/components/AccountPickerCard";
+import {
+  useSignIn,
+  signInSchema,
+  type SignInInput,
+} from "@/features/auth/hooks/useSignIn";
 import { t } from "@/utils/t";
 
-type InitialSession = { user: { name: string | null; email: string } } | null;
-
-type Props = {
-  initialSession: InitialSession;
-};
-
-export function SignInPage({ initialSession }: Props) {
+export function SignInPage() {
   const searchParams = useSearchParams();
   const search = searchParams.toString();
   const signUpHref = search ? `/sign-up?${search}` : "/sign-up";
 
-  const { data: liveSession } = authClient.useSession();
-  const session = liveSession ?? initialSession;
-  const [forceForm, setForceForm] = useState(false);
-  const [isRedirecting, setIsRedirecting] = useState(false);
-
-  const continueAs = useContinueAs(searchParams, () => setIsRedirecting(true));
-  const switchAccount = useSwitchAccount({ onSuccess: () => setForceForm(true) });
-  const signIn = useSignIn({ onRedirect: () => setIsRedirecting(true) });
+  const signIn = useSignIn();
 
   const {
     register,
@@ -55,24 +41,6 @@ export function SignInPage({ initialSession }: Props) {
     signIn.mutate(data);
   });
 
-  if (isRedirecting) return null;
-
-  if (session && !forceForm) {
-    return (
-      <AccountPickerCard
-        user={{ name: session.user.name ?? "", email: session.user.email }}
-        onContinue={continueAs}
-        onSwitch={() => switchAccount.mutate()}
-        isSwitching={switchAccount.isPending}
-        switchError={
-          switchAccount.isError
-            ? (switchAccount.error?.message ?? t("auth.account_picker.switch_error"))
-            : null
-        }
-      />
-    );
-  }
-
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
@@ -80,7 +48,11 @@ export function SignInPage({ initialSession }: Props) {
         <CardDescription>{t("auth.sign_in.description")}</CardDescription>
       </CardHeader>
       <CardContent>
-        <form id="sign-in-form" onSubmit={onSubmit} className="flex flex-col gap-4">
+        <form
+          id="sign-in-form"
+          onSubmit={onSubmit}
+          className="flex flex-col gap-4"
+        >
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="email">{t("auth.sign_in.email_label")}</Label>
             <Input
@@ -104,7 +76,9 @@ export function SignInPage({ initialSession }: Props) {
               {...register("password")}
             />
             {errors.password && (
-              <p className="text-sm text-destructive">{errors.password.message}</p>
+              <p className="text-sm text-destructive">
+                {errors.password.message}
+              </p>
             )}
           </div>
           {signIn.isError && (
@@ -121,7 +95,9 @@ export function SignInPage({ initialSession }: Props) {
           className="w-full"
           disabled={signIn.isPending}
         >
-          {signIn.isPending ? t("auth.sign_in.submitting") : t("auth.sign_in.submit")}
+          {signIn.isPending
+            ? t("auth.sign_in.submitting")
+            : t("auth.sign_in.submit")}
         </Button>
         <p className="text-sm text-muted-foreground">
           {t("auth.sign_in.no_account")}{" "}
