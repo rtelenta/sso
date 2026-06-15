@@ -1,0 +1,49 @@
+## MODIFIED Requirements
+
+### Requirement: OAuth2 Authorization Code flow is provided by @better-auth/oauth-provider plugin
+The system SHALL use `@better-auth/oauth-provider` configured in `lib/auth.ts` as the sole implementation of the OAuth2 Authorization Code flow. The plugin SHALL be configured with `loginPage: "/sign-in"`. All OAuth endpoints are mounted automatically under `/api/auth/oauth2/` via the existing Better Auth handler. OAuth clients SHALL be registered in the database (seeded via `bun db:seed`) with `requirePKCE: false` for confidential server-side clients and `skipConsent: true` for internal apps.
+
+The sign-in page (`/sign-in`) SHALL forward its full query string (the signed OAuth params appended by the plugin, including `sig`) to the sign-up page link so that `window.location.search` on `/sign-up` carries `sig`. This enables the `oauthProviderClient` fetch plugin to include `oauth_query` in the `signUp.email()` request body, allowing the plugin's server-side hook to continue the OAuth flow after registration.
+
+When a user with an active SSO session is redirected to `/sign-in`, the sign-in page SHALL display an account picker (see `sign-in-account-picker` capability) instead of the sign-in form. The account picker's "Continue as" action SHALL complete the OAuth2 authorization using the existing session, relying on the signed OAuth params in the URL to resolve the pending flow.
+
+#### Scenario: Unauthenticated user is redirected to sign-in
+- **WHEN** a browser GETs `/api/auth/oauth2/authorize?client_id=app1&redirect_uri=https://app1/callback&response_type=code&state=xyz`
+- **THEN** the server redirects to `/sign-in` and the pending OAuth request is preserved internally by the plugin
+
+#### Scenario: Authenticated user arriving at /sign-in during OAuth2 flow sees account picker
+- **WHEN** a user with an active SSO session is redirected to `/sign-in` via an OAuth2 authorize redirect
+- **THEN** the account picker is shown (not the sign-in form)
+- **AND** clicking "Continue as <name>" completes the OAuth2 flow and redirects to `https://app1/callback?code=<code>&state=xyz`
+
+#### Scenario: Authenticated user is redirected to callback with auth code
+- **WHEN** a user is already authenticated and GETs `/api/auth/oauth2/authorize` with valid params
+- **THEN** the server redirects to `https://app1/callback?code=<code>&state=xyz` immediately
+
+#### Scenario: Auth code is exchanged for tokens via form-encoded request
+- **WHEN** `POST /api/auth/oauth2/token` is called with a valid `authorization_code` grant and form-encoded body
+- **THEN** the response is HTTP 200 with `{ access_token, refresh_token, token_type: "Bearer", expires_in }`
+
+#### Scenario: Refresh token yields a new access token
+- **WHEN** `POST /api/auth/oauth2/token` is called with `grant_type=refresh_token` and a valid refresh token (form-encoded)
+- **THEN** the response is HTTP 200 with a new `access_token`
+
+#### Scenario: Refresh token can be revoked
+- **WHEN** `POST /api/auth/oauth2/revoke` is called with a valid refresh token and client credentials (form-encoded)
+- **THEN** the response is HTTP 200 and the token is invalidated; subsequent refresh attempts return an error
+
+#### Scenario: Unknown client is rejected
+- **WHEN** `/api/auth/oauth2/authorize` is called with a `client_id` not in the database
+- **THEN** the server returns an OAuth2 error response
+
+#### Scenario: New user registers during OAuth2 flow and is redirected to app callback
+- **WHEN** a user arrives at `/sign-in` via an OAuth2 authorize redirect (URL contains signed params with `sig`)
+- **AND** the user clicks "Sign up" which navigates to `/sign-up` with the same signed params forwarded
+- **AND** the user completes registration via `signUp.email()`
+- **THEN** the `oauthProviderClient` plugin attaches `oauth_query` to the request body (derived from `window.location.search`)
+- **AND** the server creates the account, establishes a session, and redirects to `https://app1/callback?code=<code>&state=xyz`
+
+#### Scenario: User registers directly on SSO (no OAuth context) and is sent to home
+- **WHEN** a user navigates directly to `/sign-up` with no signed OAuth params in the URL
+- **AND** completes registration
+- **THEN** the user is redirected to `/` (SSO home page)

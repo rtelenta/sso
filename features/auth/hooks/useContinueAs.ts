@@ -12,9 +12,9 @@ export function useContinueAs(
       return;
     }
     onRedirecting?.();
-    await authClient.$fetch("/oauth2/continue", {
+    await authClient.$fetch("/oauth2/consent", {
       method: "POST",
-      body: { selected: true },
+      body: { accept: true },
     });
   }, [searchParams, onRedirecting]);
 }
