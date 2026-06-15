@@ -10,7 +10,16 @@ export const signInSchema = z.object({
 
 export type SignInInput = z.infer<typeof signInSchema>;
 
-export function useSignIn() {
+function isRedirectResponse(data: unknown): data is { redirect: true; url: string } {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    "redirect" in data &&
+    (data as { redirect: unknown }).redirect === true
+  );
+}
+
+export function useSignIn({ onRedirect }: { onRedirect?: () => void } = {}) {
   const router = useRouter();
 
   return useMutation({
@@ -19,7 +28,11 @@ export function useSignIn() {
       if (res.error) throw new Error(res.error.message);
       return res.data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      if (isRedirectResponse(data)) {
+        onRedirect?.();
+        return;
+      }
       router.push("/");
     },
   });

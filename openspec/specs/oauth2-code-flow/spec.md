@@ -11,9 +11,16 @@ The system SHALL use `@better-auth/oauth-provider` configured in `lib/auth.ts` a
 
 The sign-in page (`/sign-in`) SHALL forward its full query string (the signed OAuth params appended by the plugin, including `sig`) to the sign-up page link so that `window.location.search` on `/sign-up` carries `sig`. This enables the `oauthProviderClient` fetch plugin to include `oauth_query` in the `signUp.email()` request body, allowing the plugin's server-side hook to continue the OAuth flow after registration.
 
+When a user with an active SSO session is redirected to `/sign-in`, the sign-in page SHALL display an account picker (see `sign-in-account-picker` capability) instead of the sign-in form. The account picker's "Continue as" action SHALL complete the OAuth2 authorization using the existing session, relying on the signed OAuth params in the URL to resolve the pending flow.
+
 #### Scenario: Unauthenticated user is redirected to sign-in
 - **WHEN** a browser GETs `/api/auth/oauth2/authorize?client_id=app1&redirect_uri=https://app1/callback&response_type=code&state=xyz`
 - **THEN** the server redirects to `/sign-in` and the pending OAuth request is preserved internally by the plugin
+
+#### Scenario: Authenticated user arriving at /sign-in during OAuth2 flow sees account picker
+- **WHEN** a user with an active SSO session is redirected to `/sign-in` via an OAuth2 authorize redirect
+- **THEN** the account picker is shown (not the sign-in form)
+- **AND** clicking "Continue as <name>" completes the OAuth2 flow and redirects to `https://app1/callback?code=<code>&state=xyz`
 
 #### Scenario: Authenticated user is redirected to callback with auth code
 - **WHEN** a user is already authenticated and GETs `/api/auth/oauth2/authorize` with valid params

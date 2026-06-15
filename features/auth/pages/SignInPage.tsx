@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
@@ -15,14 +16,32 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { authClient } from "@/lib/auth-client";
 import { useSignIn, signInSchema, type SignInInput } from "@/features/auth/hooks/useSignIn";
+import { useContinueAs } from "@/features/auth/hooks/useContinueAs";
+import { useSwitchAccount } from "@/features/auth/hooks/useSwitchAccount";
+import { AccountPickerCard } from "@/features/auth/components/AccountPickerCard";
 import { t } from "@/utils/t";
 
-export function SignInPage() {
-  const signIn = useSignIn();
+type InitialSession = { user: { name: string | null; email: string } } | null;
+
+type Props = {
+  initialSession: InitialSession;
+};
+
+export function SignInPage({ initialSession }: Props) {
   const searchParams = useSearchParams();
   const search = searchParams.toString();
   const signUpHref = search ? `/sign-up?${search}` : "/sign-up";
+
+  const { data: liveSession } = authClient.useSession();
+  const session = liveSession ?? initialSession;
+  const [forceForm, setForceForm] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+
+  const continueAs = useContinueAs(searchParams, () => setIsRedirecting(true));
+  const switchAccount = useSwitchAccount({ onSuccess: () => setForceForm(true) });
+  const signIn = useSignIn({ onRedirect: () => setIsRedirecting(true) });
 
   const {
     register,
@@ -35,6 +54,24 @@ export function SignInPage() {
   const onSubmit = handleSubmit((data) => {
     signIn.mutate(data);
   });
+
+  if (isRedirecting) return null;
+
+  if (session && !forceForm) {
+    return (
+      <AccountPickerCard
+        user={{ name: session.user.name ?? "", email: session.user.email }}
+        onContinue={continueAs}
+        onSwitch={() => switchAccount.mutate()}
+        isSwitching={switchAccount.isPending}
+        switchError={
+          switchAccount.isError
+            ? (switchAccount.error?.message ?? t("auth.account_picker.switch_error"))
+            : null
+        }
+      />
+    );
+  }
 
   return (
     <Card className="w-full max-w-sm">
