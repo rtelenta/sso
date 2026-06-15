@@ -23,33 +23,34 @@ Stage all changes and create a conventional commit. Show the message to the user
    git status
    ```
 
-2. **Draft the commit message**
+2. **Draft the commit message(s)**
 
-   Using the staged and unstaged changes, write a conventional commit message following this format:
+   Inspect the diff. If the changes are logically distinct (different features, fixes, or areas), **split them into multiple commits** rather than one combined commit.
+
+   Each commit message must be a **single line** — no body, no footer, no blank lines:
 
    ```
    <type>(<optional scope>): <short imperative summary>
-
-   <optional body — only if changes need explanation beyond the summary>
    ```
 
    Types: `feat`, `fix`, `refactor`, `chore`, `style`, `docs`, `test`, `perf`, `ci`, `build`
 
    Rules:
-   - Summary line: max 72 chars, imperative mood ("add", "fix", "remove" — not "added", "fixes")
-   - No trailing period on the summary line
-   - Body only when the why/how is non-obvious from the diff
+   - One line only — never add a body or footer
+   - Max 72 chars, imperative mood ("add", "fix", "remove" — not "added", "fixes")
+   - No trailing period
+   - If the changes are too broad for one message, plan multiple commits (each with its own single-line message) and stage them separately
    - **Never** add `Co-Authored-By`, `Generated with`, or any attribution lines
    - **Never** add a footer referencing Claude Code, AI, or any tooling
 
-3. **Show the message and ask for approval**
+3. **Show the message(s) and ask for approval**
 
-   Display the full commit message in a code block, then ask:
+   If planning multiple commits, list them all (each as a single line in a code block), then ask:
 
-   > Does this commit message look good? Reply **yes** to commit, or provide feedback / a revised message to update it.
+   > Do these commit messages look good? Reply **yes** to commit, or provide feedback / revised messages.
 
    If the agent supports structured prompts (e.g. Claude Code's `AskUserQuestion`), use it with:
-   - Question: "Does this commit message look good?"
+   - Question: "Do these commit messages look good?"
    - Options:
      - "Yes, commit it" — Proceed with this message
      - "Edit first" — Type your revised message or feedback
@@ -60,11 +61,18 @@ Stage all changes and create a conventional commit. Show the message to the user
 
 4. **Stage and commit**
 
-   Once approved:
+   Once approved, for each commit stage only the relevant files and commit with a single `-m` flag (no `\n`, no multi-line heredoc):
+
+   ```bash
+   git add <relevant files>
+   git commit -m "<single-line message>"
+   ```
+
+   If committing all changes in one go:
 
    ```bash
    git add -A
-   git commit -m "<approved message>"
+   git commit -m "<single-line message>"
    ```
 
    If there are specific files to exclude (e.g. `.env`), stage selectively with `git add` per file instead.
