@@ -20,10 +20,7 @@ export const auth = betterAuth({
     oauthProvider({
       loginPage: "/sign-in",
       consentPage: "/sign-in",
-      storeClientSecret: {
-        hash: (secret) => Promise.resolve(secret),
-        verify: (secret, stored) => Promise.resolve(secret === stored),
-      },
+      silenceWarnings: { oauthAuthServerConfig: true },
     }),
   ],
 });

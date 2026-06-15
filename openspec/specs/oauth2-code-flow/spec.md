@@ -9,9 +9,18 @@ Defines the OAuth2 Authorization Code flow for the SSO using the `@better-auth/o
 ### Requirement: OAuth2 Authorization Code flow is provided by @better-auth/oauth-provider plugin
 The system SHALL use `@better-auth/oauth-provider` configured in `lib/auth.ts` as the sole implementation of the OAuth2 Authorization Code flow. The plugin SHALL be configured with `loginPage: "/sign-in"`. All OAuth endpoints are mounted automatically under `/api/auth/oauth2/` via the existing Better Auth handler. OAuth clients SHALL be registered in the database (seeded via `bun db:seed`) with `requirePKCE: false` for confidential server-side clients and `skipConsent: true` for internal apps.
 
+The sign-in page (`/sign-in`) SHALL forward its full query string (the signed OAuth params appended by the plugin, including `sig`) to the sign-up page link so that `window.location.search` on `/sign-up` carries `sig`. This enables the `oauthProviderClient` fetch plugin to include `oauth_query` in the `signUp.email()` request body, allowing the plugin's server-side hook to continue the OAuth flow after registration.
+
+When a user with an active SSO session is redirected to `/sign-in`, the sign-in page SHALL display an account picker (see `sign-in-account-picker` capability) instead of the sign-in form. The account picker's "Continue as" action SHALL complete the OAuth2 authorization using the existing session, relying on the signed OAuth params in the URL to resolve the pending flow.
+
 #### Scenario: Unauthenticated user is redirected to sign-in
 - **WHEN** a browser GETs `/api/auth/oauth2/authorize?client_id=app1&redirect_uri=https://app1/callback&response_type=code&state=xyz`
 - **THEN** the server redirects to `/sign-in` and the pending OAuth request is preserved internally by the plugin
+
+#### Scenario: Authenticated user arriving at /sign-in during OAuth2 flow sees account picker
+- **WHEN** a user with an active SSO session is redirected to `/sign-in` via an OAuth2 authorize redirect
+- **THEN** the account picker is shown (not the sign-in form)
+- **AND** clicking "Continue as <name>" completes the OAuth2 flow and redirects to `https://app1/callback?code=<code>&state=xyz`
 
 #### Scenario: Authenticated user is redirected to callback with auth code
 - **WHEN** a user is already authenticated and GETs `/api/auth/oauth2/authorize` with valid params
@@ -33,16 +42,32 @@ The system SHALL use `@better-auth/oauth-provider` configured in `lib/auth.ts` a
 - **WHEN** `/api/auth/oauth2/authorize` is called with a `client_id` not in the database
 - **THEN** the server returns an OAuth2 error response
 
-### Requirement: OAuth clients are registered as trustedClients in lib/auth.ts
-The system SHALL register downstream apps as entries in the `trustedClients` plugin option, each with `clientId`, `clientSecret`, and `redirectURLs`. Client secrets SHALL be read from environment variables exported from `lib/constants.ts`. All trusted clients SHALL have `skipConsent: true` since they are internal apps.
+#### Scenario: New user registers during OAuth2 flow and is redirected to app callback
+- **WHEN** a user arrives at `/sign-in` via an OAuth2 authorize redirect (URL contains signed params with `sig`)
+- **AND** the user clicks "Sign up" which navigates to `/sign-up` with the same signed params forwarded
+- **AND** the user completes registration via `signUp.email()`
+- **THEN** the `oauthProviderClient` plugin attaches `oauth_query` to the request body (derived from `window.location.search`)
+- **AND** the server creates the account, establishes a session, and redirects to `https://app1/callback?code=<code>&state=xyz`
 
-#### Scenario: Client with valid credentials can exchange a code
+#### Scenario: User registers directly on SSO (no OAuth context) and is sent to home
+- **WHEN** a user navigates directly to `/sign-up` with no signed OAuth params in the URL
+- **AND** completes registration
+- **THEN** the user is redirected to `/` (SSO home page)
+
+### Requirement: OAuth clients are registered as trustedClients in lib/auth.ts
+The system SHALL register downstream apps as entries in the `trustedClients` plugin option, each with `clientId`, `clientSecret`, and `redirectURLs`. Client secrets SHALL be read from environment variables exported from `lib/constants.ts`. All trusted clients SHALL have `skipConsent: true` since they are internal apps. Client secrets SHALL be stored using better-auth's secure default hashing — the `storeClientSecret` override SHALL NOT be configured.
+
+#### Scenario: Client with valid secret authenticates successfully
 - **WHEN** `POST /api/auth/oauth2/token` is called with a `client_id` and `client_secret` matching a `trustedClients` entry
-- **THEN** the token exchange succeeds
+- **THEN** the server returns a token response with `access_token`, `token_type`, and optionally `refresh_token`
 
 #### Scenario: Client with invalid secret is rejected
 - **WHEN** `POST /api/auth/oauth2/token` is called with a wrong `client_secret`
-- **THEN** the response is HTTP 401
+- **THEN** the server returns HTTP 401
+
+#### Scenario: Client secrets are not stored as plaintext
+- **WHEN** an OAuth client secret is written to the database
+- **THEN** the stored value SHALL be a hash produced by better-auth's default `storeClientSecret` mechanism, not the raw secret string
 
 ### Requirement: OIDC discovery endpoint is available
 The system SHALL expose `GET /.well-known/openid-configuration` returning a JSON document with the issuer URL, authorization endpoint, token endpoint, and supported grant types. This is provided automatically by the plugin.

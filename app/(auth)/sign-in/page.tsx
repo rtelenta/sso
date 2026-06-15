@@ -1,5 +1,5 @@
 import { SignInPage } from "@/features/auth/pages/SignInPage";
 
-export default async function Page() {
+export default function Page() {
   return <SignInPage />;
 }
