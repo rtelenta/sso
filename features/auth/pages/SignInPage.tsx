@@ -81,6 +81,12 @@ function SignInContent() {
                 {errors.password.message}
               </p>
             )}
+            <Link
+              href="/recover-password"
+              className="text-sm text-muted-foreground underline underline-offset-4 self-start"
+            >
+              {t("auth.sign_in.forgot_password")}
+            </Link>
           </div>
           {signIn.isError && (
             <p className="text-sm text-destructive">
