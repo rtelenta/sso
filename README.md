@@ -50,7 +50,7 @@ bun run db:seed
 bun run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to see the SSO sign-in page.
+Open [http://sso.localhost:3005](http://sso.localhost:3005) to see the SSO sign-in page.
 
 ## Scripts ⚙️
 

@@ -12,7 +12,7 @@ get {
 
 params:query {
   response_type: code
-  redirect_uri: http://localhost:3001/callback
+  redirect_uri: http://mailer.localhost:3006/api/auth/sso/callback/internal
   state: random_csrf_state_value
   client_id: {{client_id}}
   scope: openid email profile

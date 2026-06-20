@@ -16,7 +16,7 @@ cp .env.example .env
 |---|---|---|
 | `DATABASE_URL` | PostgreSQL connection string | See [Database Setup](#2-database-setup) below |
 | `BETTER_AUTH_SECRET` | Secret used to sign sessions and tokens | Generate with `openssl rand -base64 32` |
-| `NEXT_PUBLIC_APP_URL` | Public base URL of this SSO app (no trailing slash) | `http://localhost:3000` for local dev |
+| `NEXT_PUBLIC_APP_URL` | Public base URL of this SSO app (no trailing slash) | `http://sso.localhost:3005` for local dev |
 | `DEV_CLIENT_SECRET` | Secret for the seeded `dev-client` OAuth client | Any string, e.g. `dev-secret`. Must match what the Bruno collection uses |
 
 ---
@@ -77,7 +77,7 @@ If you see `dev-client already exists, skipping`, the client is already there â€
 bun run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). You should see the SSO sign-in page.
+Open [http://sso.localhost:3005](http://sso.localhost:3005). You should see the SSO sign-in page.
 
 ---
 
