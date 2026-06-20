@@ -41,3 +41,14 @@ The `/sign-up` route SHALL apply the same guard as `/sign-in`. If `client_id` or
 #### Scenario: OAuth-initiated sign-up access is unaffected
 - **WHEN** a user arrives at `/sign-up` with both `client_id` and `redirect_uri` params present
 - **THEN** the sign-up page renders normally
+
+### Requirement: Sign-in form has a "Forgot password?" link
+The sign-in form SHALL display a "Forgot password?" link below the password field. The link SHALL navigate to `/recover-password`. The link text SHALL be sourced from `locales/en.json`.
+
+#### Scenario: "Forgot password?" link is visible on the sign-in page
+- **WHEN** a user views the sign-in page
+- **THEN** a "Forgot password?" link is rendered below the password input field
+
+#### Scenario: "Forgot password?" link navigates to the recovery page
+- **WHEN** a user clicks the "Forgot password?" link on the sign-in page
+- **THEN** the browser navigates to `/recover-password`

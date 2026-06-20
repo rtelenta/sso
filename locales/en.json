@@ -15,7 +15,8 @@
       "submit": "Sign in",
       "submitting": "Signing in…",
       "no_account": "Don't have an account?",
-      "sign_up_link": "Sign up"
+      "sign_up_link": "Sign up",
+      "forgot_password": "Forgot password?"
     },
     "sign_up": {
       "title": "Create an account",
@@ -30,6 +31,25 @@
       "submitting": "Creating account…",
       "have_account": "Already have an account?",
       "sign_in_link": "Sign in"
+    },
+    "recover_password": {
+      "title": "Recover your password",
+      "description": "Enter your email address and we'll send you a link to reset your password.",
+      "email_label": "Email",
+      "email_placeholder": "you@example.com",
+      "submit": "Send reset link",
+      "submitting": "Sending…",
+      "success_title": "Check your email",
+      "success_message": "If an account exists for that address, you'll receive a password reset link shortly."
+    },
+    "reset_password": {
+      "title": "Set a new password",
+      "description": "Enter a new password for your account.",
+      "password_label": "New password",
+      "password_placeholder": "••••••••",
+      "submit": "Reset password",
+      "submitting": "Resetting…",
+      "invalid_link": "This reset link is invalid or has expired. Please request a new one."
     },
     "errors": {
       "invalid_credentials": "Invalid email or password",
